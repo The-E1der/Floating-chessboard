@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floating Chess Sandbox</title>
+    
+    <!-- Chessboard CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" />
+    
+    <!-- jQuery & Chessboard JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 8px;
+            background: #ffffff;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        
+        #myBoard {
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 8px;
+        }
+        
+        button {
+            padding: 6px 10px;
+            margin: 2px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:active {
+            background-color: #555;
+        }
+
+        /* Mobile-Friendly Piece Palette */
+        .palette {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 6px;
+            background: #f0f0f0;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .palette img {
+            width: 30px;
+            height: 30px;
+            padding: 2px;
+            border: 2px solid transparent;
+            border-radius: 4px;
+        }
+
+        .palette img.selected {
+            border-color: #007bff;
+            background-color: #d0e1ff;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Spare Piece Palette -->
+    <div class="palette" id="piecePalette">
+        <!-- White Pieces -->
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wP.png" data-piece="wP" alt="White Pawn">
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wN.png" data-piece="wN" alt="White Knight">
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wB.png" data-piece="wB" alt="White Bishop">
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wR.png" data-piece="wR" alt="White Rook">
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wQ.png" data-piece="wQ" alt="White Queen">
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wK.png" data-piece="wK" alt="White King">
+        <!-- Black Pieces -->
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bP.png" data-piece="bP" alt="Black Pawn">
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bN.png" data-piece="bN" alt="Black Knight">
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bB.png" data-piece="bB" alt="Black Bishop">
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bR.png" data-piece="bR" alt="Black Rook">
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bQ.png" data-piece="bQ" alt="Black Queen">
+        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bK.png" data-piece="bK" alt="Black King">
+    </div>
+
+    <!-- The Chessboard -->
+    <div id="myBoard"></div>
+
+    <!-- Action Controls -->
+    <div class="controls">
+        <button id="undoBtn">↺ Undo</button>
+        <button id="resetBtn">Reset</button>
+        <button id="clearBtn">Clear</button>
+        <button id="flipBtn">Flip</button>
+    </div>
+
+    <script>
+        let history = [];
+        let selectedPiece = null;
+
+        function pieceTheme(piece) {
+            return 'https://chessboardjs.com/img/chesspieces/wikipedia/' + piece + '.png';
+        }
+
+        // Save state snapshot for Undo history
+        function saveHistory() {
+            if (typeof board !== 'undefined') {
+                history.push(board.fen());
+            }
+        }
+
+        const config = {
+            draggable: true,
+            dropOffBoard: 'trash', // Drag off board to delete pieces
+            sparePieces: false,    // Off to prevent mobile touch glitches
+            position: 'start',
+            pieceTheme: pieceTheme
+        };
+
+        var board = Chessboard('myBoard', config);
+        history.push(board.fen());
+
+        // --- Tap-to-Place Spare Piece Palette ---
+
+        $('#piecePalette img').on('click touchstart', function (e) {
+            e.preventDefault();
+            const clickedPiece = $(this).attr('data-piece');
+
+            if (selectedPiece === clickedPiece) {
+                selectedPiece = null;
+                $('#piecePalette img').removeClass('selected');
+            } else {
+                selectedPiece = clickedPiece;
+                $('#piecePalette img').removeClass('selected');
+                $(this).addClass('selected');
+            }
+        });
+
+        $('#myBoard').on('click touchstart', '.square-55d63', function (e) {
+            if (selectedPiece) {
+                e.preventDefault();
+                const square = $(this).attr('data-square');
+                
+                const currentPosition = board.position();
+                currentPosition[square] = selectedPiece;
+                board.position(currentPosition, false);
+                
+                saveHistory();
+            }
+        });
+
+        // --- Drag Handlers ---
+
+        function onDragStart(source, piece, position, orientation) {
+            if (selectedPiece) return false; // Prevent dragging while palette piece is selected
+            return true;
+        }
+
+        function onDrop(source, target, piece, newPos, oldPos, orientation) {
+            setTimeout(saveHistory, 100);
+        }
+
+        config.onDragStart = onDragStart;
+        config.onDrop = onDrop;
+        board = Chessboard('myBoard', config);
+
+        // --- Controls Handlers ---
+
+        // UNDO BUTTON
+        $('#undoBtn').on('click', () => {
+            if (history.length > 1) {
+                history.pop();
+                board.position(history[history.length - 1], true);
+            }
+        });
+
+        // RESET BUTTON
+        $('#resetBtn').on('click', () => {
+            board.start();
+            history = [board.fen()];
+            selectedPiece = null;
+            $('#piecePalette img').removeClass('selected');
+        });
+
+        // CLEAR BUTTON
+        $('#clearBtn').on('click', () => {
+            board.clear();
+            history = [board.fen()];
+            selectedPiece = null;
+            $('#piecePalette img').removeClass('selected');
+        });
+
+        // FLIP BUTTON
+        $('#flipBtn').on('click', () => {
+            board.flip();
+        });
+    </script>
+</body>
+</html>
