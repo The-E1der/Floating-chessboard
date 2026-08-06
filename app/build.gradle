@@ -4,6 +4,7 @@ plugins {
 }
 
 android {
+    namespace 'com.floatingchess'
     compileSdk 33
 
     defaultConfig {
