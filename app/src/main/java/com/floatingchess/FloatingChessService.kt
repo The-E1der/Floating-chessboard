@@ -31,13 +31,14 @@ class FloatingChessService : Service() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         // Create WebView dynamically
-        webView = WebView(this).apply {
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            webViewClient = WebViewClient()
-            loadUrl("file:///android_asset/chess_overlay.html")
+        webView.apply {
+    settings.javaScriptEnabled = true
+    settings.domStorageEnabled = true
+    settings.useWideViewPort = true
+    settings.loadWithOverviewMode = true
+    
+    loadUrl("file:///android_asset/chess_overlay.html")
         }
-
         // Window Layout parameters
         val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
