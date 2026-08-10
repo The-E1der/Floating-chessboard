@@ -17,7 +17,7 @@
             font-family: sans-serif;
             margin: 0;
             padding: 8px;
-            background: #ffffff;
+            background: transparent;
             user-select: none;
             -webkit-user-select: none;
             touch-action: manipulation;
@@ -74,139 +74,213 @@
             border-color: #007bff;
             background-color: #d0e1ff;
         }
+
+        #bubble-icon {
+            display: none; 
+            font-size: 40px; 
+            cursor: pointer; 
+            text-align: center; 
+            margin-top: 10px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            line-height: 60px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            margin-left: auto;
+            margin-right: auto;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Spare Piece Palette -->
-    <div class="palette" id="piecePalette">
-        <!-- White Pieces -->
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wP.png" data-piece="wP" alt="White Pawn">
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wN.png" data-piece="wN" alt="White Knight">
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wB.png" data-piece="wB" alt="White Bishop">
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wR.png" data-piece="wR" alt="White Rook">
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wQ.png" data-piece="wQ" alt="White Queen">
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wK.png" data-piece="wK" alt="White King">
-        <!-- Black Pieces -->
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bP.png" data-piece="bP" alt="Black Pawn">
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bN.png" data-piece="bN" alt="Black Knight">
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bB.png" data-piece="bB" alt="Black Bishop">
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bR.png" data-piece="bR" alt="Black Rook">
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bQ.png" data-piece="bQ" alt="Black Queen">
-        <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bK.png" data-piece="bK" alt="Black King">
-    </div>
-
+<!-- Main Container (Everything inside hides when minimized) -->
+<div id="main-container">
+    
     <!-- The Chessboard -->
     <div id="myBoard"></div>
 
-    <!-- Action Controls -->
-    <div class="controls">
+    <!-- Spare Pieces -->
+    <div id="spare-pieces">
+        <div class="palette" id="piecePalette">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wP.png" data-piece="wP" alt="White Pawn">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wN.png" data-piece="wN" alt="White Knight">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wB.png" data-piece="wB" alt="White Bishop">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wR.png" data-piece="wR" alt="White Rook">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wQ.png" data-piece="wQ" alt="White Queen">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wK.png" data-piece="wK" alt="White King">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bP.png" data-piece="bP" alt="Black Pawn">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bN.png" data-piece="bN" alt="Black Knight">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bB.png" data-piece="bB" alt="Black Bishop">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bR.png" data-piece="bR" alt="Black Rook">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bQ.png" data-piece="bQ" alt="Black Queen">
+            <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bK.png" data-piece="bK" alt="Black King">
+        </div>
+    </div>
+
+    <!-- Action Controls (Hides when 'Hide' is tapped) -->
+    <div id="utility-panel" class="controls">
         <button id="undoBtn">↺ Undo</button>
         <button id="resetBtn">Reset</button>
         <button id="clearBtn">Clear</button>
         <button id="flipBtn">Flip</button>
+        <button id="move-btn" style="opacity: 0.5;">Move</button>
+        <button id="hide-btn">Hide</button>
+        <button id="minimize-btn">Minimize</button>
     </div>
 
-    <script>
-        let history = [];
-        let selectedPiece = null;
+    <!-- Unhide Button (Placed outside the utility panel so it doesn't hide itself) -->
+    <div style="text-align: center; margin-top: 5px;">
+        <button id="unhide-btn" style="display: none;">Unhide</button>
+    </div>
 
-        function pieceTheme(piece) {
-            return 'https://chessboardjs.com/img/chesspieces/wikipedia/' + piece + '.png';
+</div>
+
+<!-- Bubble Icon (Placed outside main-container so it stays visible when everything else shrinks) -->
+<div id="bubble-icon">♟️</div>
+
+
+<script>
+    let history = [];
+    let selectedPiece = null;
+
+    function pieceTheme(piece) {
+        return 'https://chessboardjs.com/img/chesspieces/wikipedia/' + piece + '.png';
+    }
+
+    function saveHistory() {
+        if (typeof board !== 'undefined') {
+            history.push(board.fen());
         }
+    }
 
-        // Save state snapshot for Undo history
-        function saveHistory() {
-            if (typeof board !== 'undefined') {
-                history.push(board.fen());
-            }
+    const config = {
+        draggable: true,
+        dropOffBoard: 'trash', 
+        sparePieces: false,    
+        position: 'start',
+        pieceTheme: pieceTheme
+    };
+
+    var board = Chessboard('myBoard', config);
+    history.push(board.fen());
+
+    // --- Tap-to-Place Spare Piece Palette ---
+    $('#piecePalette img').on('click touchstart', function (e) {
+        e.preventDefault();
+        const clickedPiece = $(this).attr('data-piece');
+
+        if (selectedPiece === clickedPiece) {
+            selectedPiece = null;
+            $('#piecePalette img').removeClass('selected');
+        } else {
+            selectedPiece = clickedPiece;
+            $('#piecePalette img').removeClass('selected');
+            $(this).addClass('selected');
         }
+    });
 
-        const config = {
-            draggable: true,
-            dropOffBoard: 'trash', // Drag off board to delete pieces
-            sparePieces: false,    // Off to prevent mobile touch glitches
-            position: 'start',
-            pieceTheme: pieceTheme
-        };
-
-        var board = Chessboard('myBoard', config);
-        history.push(board.fen());
-
-        // --- Tap-to-Place Spare Piece Palette ---
-
-        $('#piecePalette img').on('click touchstart', function (e) {
+    $('#myBoard').on('click touchstart', '.square-55d63', function (e) {
+        if (selectedPiece) {
             e.preventDefault();
-            const clickedPiece = $(this).attr('data-piece');
-
-            if (selectedPiece === clickedPiece) {
-                selectedPiece = null;
-                $('#piecePalette img').removeClass('selected');
-            } else {
-                selectedPiece = clickedPiece;
-                $('#piecePalette img').removeClass('selected');
-                $(this).addClass('selected');
-            }
-        });
-
-        $('#myBoard').on('click touchstart', '.square-55d63', function (e) {
-            if (selectedPiece) {
-                e.preventDefault();
-                const square = $(this).attr('data-square');
-                
-                const currentPosition = board.position();
-                currentPosition[square] = selectedPiece;
-                board.position(currentPosition, false);
-                
-                saveHistory();
-            }
-        });
-
-        // --- Drag Handlers ---
-
-        function onDragStart(source, piece, position, orientation) {
-            if (selectedPiece) return false; // Prevent dragging while palette piece is selected
-            return true;
+            const square = $(this).attr('data-square');
+            const currentPosition = board.position();
+            currentPosition[square] = selectedPiece;
+            board.position(currentPosition, false);
+            saveHistory();
         }
+    });
 
-        function onDrop(source, target, piece, newPos, oldPos, orientation) {
-            setTimeout(saveHistory, 100);
+    function onDragStart(source, piece, position, orientation) {
+        if (selectedPiece) return false; 
+        return true;
+    }
+
+    function onDrop(source, target, piece, newPos, oldPos, orientation) {
+        setTimeout(saveHistory, 100);
+    }
+
+    config.onDragStart = onDragStart;
+    config.onDrop = onDrop;
+    board = Chessboard('myBoard', config);
+
+    // --- Controls Handlers ---
+    $('#undoBtn').on('click', () => {
+        if (history.length > 1) {
+            history.pop();
+            board.position(history[history.length - 1], true);
         }
+    });
 
-        config.onDragStart = onDragStart;
-        config.onDrop = onDrop;
-        board = Chessboard('myBoard', config);
+    $('#resetBtn').on('click', () => {
+        board.start();
+        history = [board.fen()];
+        selectedPiece = null;
+        $('#piecePalette img').removeClass('selected');
+    });
 
-        // --- Controls Handlers ---
+    $('#clearBtn').on('click', () => {
+        board.clear();
+        history = [board.fen()];
+        selectedPiece = null;
+        $('#piecePalette img').removeClass('selected');
+    });
 
-        // UNDO BUTTON
-        $('#undoBtn').on('click', () => {
-            if (history.length > 1) {
-                history.pop();
-                board.position(history[history.length - 1], true);
-            }
-        });
+    $('#flipBtn').on('click', () => {
+        board.flip();
+    });
 
-        // RESET BUTTON
-        $('#resetBtn').on('click', () => {
-            board.start();
-            history = [board.fen()];
-            selectedPiece = null;
-            $('#piecePalette img').removeClass('selected');
-        });
+    // --- Window State UI Handlers ---
+    const utilityPanel = document.getElementById('utility-panel');
+    const sparePieces = document.getElementById('spare-pieces');
+    const hideBtn = document.getElementById('hide-btn');
+    const unhideBtn = document.getElementById('unhide-btn');
+    const moveBtn = document.getElementById('move-btn');
+    const minimizeBtn = document.getElementById('minimize-btn');
+    const bubbleIcon = document.getElementById('bubble-icon');
+    const mainContainer = document.getElementById('main-container');
 
-        // CLEAR BUTTON
-        $('#clearBtn').on('click', () => {
-            board.clear();
-            history = [board.fen()];
-            selectedPiece = null;
-            $('#piecePalette img').removeClass('selected');
-        });
+    let moveModeActive = false;
 
-        // FLIP BUTTON
-        $('#flipBtn').on('click', () => {
-            board.flip();
-        });
-    </script>
+    // Hide / Unhide functionality
+    hideBtn.addEventListener('click', () => {
+        utilityPanel.style.display = 'none';
+        sparePieces.style.display = 'none';
+        unhideBtn.style.display = 'inline-block';
+    });
+
+    unhideBtn.addEventListener('click', () => {
+        utilityPanel.style.display = 'block';
+        sparePieces.style.display = 'block';
+        unhideBtn.style.display = 'none';
+    });
+
+    // Move toggle
+    moveBtn.addEventListener('click', () => {
+        moveModeActive = !moveModeActive;
+        if (window.AndroidBridge) {
+            AndroidBridge.toggleMoveMode(moveModeActive);
+        }
+        moveBtn.style.opacity = moveModeActive ? '1' : '0.5';
+        moveBtn.style.backgroundColor = moveModeActive ? '#4CAF50' : '#333';
+    });
+
+    // Minimize / Maximize functionality
+    minimizeBtn.addEventListener('click', () => {
+        mainContainer.style.display = 'none';
+        bubbleIcon.style.display = 'block';
+        if (window.AndroidBridge) {
+            AndroidBridge.minimizeWindow();
+        }
+    });
+
+    bubbleIcon.addEventListener('click', () => {
+        mainContainer.style.display = 'block';
+        bubbleIcon.style.display = 'none';
+        if (window.AndroidBridge) {
+            AndroidBridge.maximizeWindow();
+        }
+    });
+</script>
 </body>
-</html>
+                </html>
