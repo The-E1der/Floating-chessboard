@@ -29,7 +29,7 @@ class FloatingChessService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // Helper function to handle screen density properly
+    // Converts Android's 'dp' (density-independent pixels) to raw screen pixels
     private fun dpToPx(dp: Int): Int {
         return TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
@@ -43,10 +43,12 @@ class FloatingChessService : Service() {
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
-        // Hardcode width to 340dp so it perfectly fits your 300px board + padding
+        // Hardcode the max width right out the gate!
+        val windowWidthPx = dpToPx(340)
+
         layoutParams = WindowManager.LayoutParams(
-            dpToPx(340), 
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            windowWidthPx, // No more WRAP_CONTENT for width
+            WindowManager.LayoutParams.WRAP_CONTENT, // Height can still wrap around the board + buttons
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
@@ -72,7 +74,6 @@ class FloatingChessService : Service() {
             loadUrl("file:///android_asset/chess_overlay.html")
         }
 
-        // Intercept touches if Move Mode is active
         webView.setOnTouchListener { _, event ->
             if (isMoveMode) {
                 when (event.action) {
@@ -90,7 +91,6 @@ class FloatingChessService : Service() {
                         true
                     }
                     MotionEvent.ACTION_UP -> {
-                        // Auto-disable move mode when finger is lifted
                         isMoveMode = false
                         webView.evaluateJavascript(
                             "moveModeActive = false; document.getElementById('move-btn').style.opacity = '0.5'; document.getElementById('move-btn').style.backgroundColor = '#333';",
@@ -122,9 +122,8 @@ class FloatingChessService : Service() {
         @JavascriptInterface
         fun minimizeWindow() {
             Handler(Looper.getMainLooper()).post {
-                // Shrink to bubble size
-                layoutParams.width = dpToPx(70)
-                layoutParams.height = dpToPx(70)
+                layoutParams.width = dpToPx(70) // Shrink to bubble width
+                layoutParams.height = dpToPx(70) // Shrink to bubble height
                 windowManager.updateViewLayout(webView, layoutParams)
             }
         }
@@ -132,7 +131,7 @@ class FloatingChessService : Service() {
         @JavascriptInterface
         fun maximizeWindow() {
             Handler(Looper.getMainLooper()).post {
-                // Restore specifically to 340dp instead of trusting WRAP_CONTENT
+                // Restore strictly to the 340dp limit instead of WRAP_CONTENT
                 layoutParams.width = dpToPx(340)
                 layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
                 windowManager.updateViewLayout(webView, layoutParams)
