@@ -246,17 +246,30 @@
 
     let moveModeActive = false;
 
+    // Measures the real rendered height of the visible content and sends it
+    // to Android as raw pixels, so native never has to guess with
+    // WRAP_CONTENT (which is unreliable on a WindowManager-attached WebView).
+    function reportHeight() {
+        if (!window.AndroidBridge || !window.AndroidBridge.updateContentHeight) return;
+        const visibleRoot = (mainContainer.style.display === 'none') ? bubbleIcon : mainContainer;
+        const cssHeight = visibleRoot.getBoundingClientRect().height;
+        const rawPx = Math.ceil(cssHeight * (window.devicePixelRatio || 1));
+        AndroidBridge.updateContentHeight(rawPx);
+    }
+
     // Hide / Unhide
     hideBtn.addEventListener('click', () => {
         utilityPanel.style.display = 'none';
         sparePieces.style.display = 'none';
         unhideBtn.style.display = 'inline-block';
+        setTimeout(reportHeight, 0);
     });
 
     unhideBtn.addEventListener('click', () => {
         utilityPanel.style.display = 'block';
         sparePieces.style.display = 'block';
         unhideBtn.style.display = 'none';
+        setTimeout(reportHeight, 0);
     });
 
     // Move toggle
@@ -276,6 +289,7 @@
         if (window.AndroidBridge) {
             AndroidBridge.minimizeWindow();
         }
+        setTimeout(reportHeight, 0);
     });
 
     bubbleIcon.addEventListener('click', () => {
@@ -284,13 +298,20 @@
         if (window.AndroidBridge) {
             AndroidBridge.maximizeWindow();
         }
-        // Force board to recalculate grid layout cleanly upon restore
+        // Force board to recalculate grid layout cleanly upon restore,
+        // THEN measure — height must be reported after the board reflows,
+        // not before, or we'll send a stale/short number.
         setTimeout(() => {
             if (typeof board !== 'undefined' && board.resize) {
                 board.resize();
             }
+            reportHeight();
         }, 50);
     });
+
+    // Also correct the height once on initial load, since the native side
+    // starts with a fallback guess (480dp) rather than WRAP_CONTENT.
+    window.addEventListener('load', () => setTimeout(reportHeight, 100));
 </script>
 </body>
 </html>
