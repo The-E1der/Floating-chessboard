@@ -44,6 +44,7 @@ class FloatingChessService : Service() {
     @SuppressLint("ClickableViewAccessibility", "SetJavaScriptEnabled")
     override fun onCreate() {
         super.onCreate()
+        Log.d("FloatingChess", "BUILD-CHECK v2: onCreate() running, updated code is live")
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         // Hardcode the max width right out the gate!
