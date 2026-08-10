@@ -14,6 +14,9 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import android.webkit.WebChromeClient
+import android.webkit.ConsoleMessage
 
 class FloatingChessService : Service() {
 
@@ -70,7 +73,14 @@ class FloatingChessService : Service() {
             setBackgroundColor(0x00000000)
             
             addJavascriptInterface(WebAppInterface(), "AndroidBridge")
-            
+
+            webChromeClient = object : WebChromeClient() {
+                override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
+                    Log.d("FloatingChess", "JS console: ${msg.message()} (${msg.sourceId()}:${msg.lineNumber()})")
+                    return true
+                }
+            }
+
             loadUrl("file:///android_asset/chess_overlay.html")
         }
 
@@ -131,12 +141,9 @@ class FloatingChessService : Service() {
         @JavascriptInterface
         fun maximizeWindow() {
             Handler(Looper.getMainLooper()).post {
-                // Restore width immediately; height stays whatever it last was
-                // until the JS side calls updateContentHeight() with the real
-                // measured size below. Never hand WebView WRAP_CONTENT here —
-                // that's what causes the stretch bug.
                 layoutParams.width = dpToPx(340)
                 windowManager.updateViewLayout(webView, layoutParams)
+                Log.d("FloatingChess", "maximizeWindow: width=${layoutParams.width} height=${layoutParams.height}")
             }
         }
 
@@ -147,6 +154,7 @@ class FloatingChessService : Service() {
         @JavascriptInterface
         fun updateContentHeight(heightPx: Int) {
             Handler(Looper.getMainLooper()).post {
+                Log.d("FloatingChess", "updateContentHeight received: ${heightPx}px (density=${resources.displayMetrics.density})")
                 if (heightPx > 0) {
                     layoutParams.height = heightPx
                     windowManager.updateViewLayout(webView, layoutParams)
