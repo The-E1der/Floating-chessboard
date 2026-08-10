@@ -48,7 +48,7 @@ class FloatingChessService : Service() {
 
         layoutParams = WindowManager.LayoutParams(
             windowWidthPx, // No more WRAP_CONTENT for width
-            WindowManager.LayoutParams.WRAP_CONTENT, // Height can still wrap around the board + buttons
+            dpToPx(480), // Safe fallback until JS reports the real content height
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
@@ -131,10 +131,26 @@ class FloatingChessService : Service() {
         @JavascriptInterface
         fun maximizeWindow() {
             Handler(Looper.getMainLooper()).post {
-                // Restore strictly to the 340dp limit instead of WRAP_CONTENT
+                // Restore width immediately; height stays whatever it last was
+                // until the JS side calls updateContentHeight() with the real
+                // measured size below. Never hand WebView WRAP_CONTENT here —
+                // that's what causes the stretch bug.
                 layoutParams.width = dpToPx(340)
-                layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
                 windowManager.updateViewLayout(webView, layoutParams)
+            }
+        }
+
+        // Called from JS with the *actual* measured height of #main-container,
+        // in raw pixels (already multiplied by devicePixelRatio on the JS side).
+        // This replaces guessing a dp value in Kotlin, which is what was
+        // unreliable before.
+        @JavascriptInterface
+        fun updateContentHeight(heightPx: Int) {
+            Handler(Looper.getMainLooper()).post {
+                if (heightPx > 0) {
+                    layoutParams.height = heightPx
+                    windowManager.updateViewLayout(webView, layoutParams)
+                }
             }
         }
     }
