@@ -253,7 +253,9 @@
         if (!window.AndroidBridge || !window.AndroidBridge.updateContentHeight) return;
         const visibleRoot = (mainContainer.style.display === 'none') ? bubbleIcon : mainContainer;
         const cssHeight = visibleRoot.getBoundingClientRect().height;
-        const rawPx = Math.ceil(cssHeight * (window.devicePixelRatio || 1));
+        const dpr = window.devicePixelRatio || 1;
+        const rawPx = Math.ceil(cssHeight * dpr);
+        console.log('reportHeight: cssHeight=' + cssHeight + ' dpr=' + dpr + ' rawPx=' + rawPx);
         AndroidBridge.updateContentHeight(rawPx);
     }
 
