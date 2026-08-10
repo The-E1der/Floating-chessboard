@@ -43,8 +43,9 @@ class FloatingChessService : Service() {
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
+        // Hardcode width to 340dp so it perfectly fits your 300px board + padding
         layoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            dpToPx(340), 
             WindowManager.LayoutParams.WRAP_CONTENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -62,7 +63,6 @@ class FloatingChessService : Service() {
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            // Disabled wide viewport scaling to prevent board distortion on restore
             settings.useWideViewPort = false
             settings.loadWithOverviewMode = false
             setBackgroundColor(0x00000000)
@@ -122,7 +122,7 @@ class FloatingChessService : Service() {
         @JavascriptInterface
         fun minimizeWindow() {
             Handler(Looper.getMainLooper()).post {
-                // Clean 70dp bubble dimensions
+                // Shrink to bubble size
                 layoutParams.width = dpToPx(70)
                 layoutParams.height = dpToPx(70)
                 windowManager.updateViewLayout(webView, layoutParams)
@@ -132,8 +132,8 @@ class FloatingChessService : Service() {
         @JavascriptInterface
         fun maximizeWindow() {
             Handler(Looper.getMainLooper()).post {
-                // Restore original wrapped layout bounds smoothly
-                layoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT
+                // Restore specifically to 340dp instead of trusting WRAP_CONTENT
+                layoutParams.width = dpToPx(340)
                 layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
                 windowManager.updateViewLayout(webView, layoutParams)
             }
