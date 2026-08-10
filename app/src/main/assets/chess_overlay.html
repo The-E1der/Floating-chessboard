@@ -23,9 +23,15 @@
             touch-action: manipulation;
         }
         
+        /* Fixed container width so WRAP_CONTENT never blows up on maximize */
+        #main-container {
+            width: 320px;
+            box-sizing: border-box;
+            margin: 0 auto;
+        }
+
         #myBoard {
             width: 100%;
-            max-width: 300px;
             margin: 0 auto;
         }
 
@@ -80,21 +86,19 @@
             font-size: 40px; 
             cursor: pointer; 
             text-align: center; 
-            margin-top: 10px;
             background-color: rgba(255, 255, 255, 0.9);
             border-radius: 50%;
             width: 60px;
             height: 60px;
             line-height: 60px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            margin-left: auto;
-            margin-right: auto;
+            margin: 0 auto;
         }
     </style>
 </head>
 <body>
 
-<!-- Main Container (Everything inside hides when minimized) -->
+<!-- Main Container -->
 <div id="main-container">
     
     <!-- The Chessboard -->
@@ -118,7 +122,7 @@
         </div>
     </div>
 
-    <!-- Action Controls (Hides when 'Hide' is tapped) -->
+    <!-- Action Controls -->
     <div id="utility-panel" class="controls">
         <button id="undoBtn">↺ Undo</button>
         <button id="resetBtn">Reset</button>
@@ -129,14 +133,14 @@
         <button id="minimize-btn">Minimize</button>
     </div>
 
-    <!-- Unhide Button (Placed outside the utility panel so it doesn't hide itself) -->
+    <!-- Unhide Button -->
     <div style="text-align: center; margin-top: 5px;">
         <button id="unhide-btn" style="display: none;">Unhide</button>
     </div>
 
 </div>
 
-<!-- Bubble Icon (Placed outside main-container so it stays visible when everything else shrinks) -->
+<!-- Bubble Icon -->
 <div id="bubble-icon">♟️</div>
 
 
@@ -242,7 +246,7 @@
 
     let moveModeActive = false;
 
-    // Hide / Unhide functionality
+    // Hide / Unhide
     hideBtn.addEventListener('click', () => {
         utilityPanel.style.display = 'none';
         sparePieces.style.display = 'none';
@@ -265,7 +269,7 @@
         moveBtn.style.backgroundColor = moveModeActive ? '#4CAF50' : '#333';
     });
 
-    // Minimize / Maximize functionality
+    // Minimize / Maximize
     minimizeBtn.addEventListener('click', () => {
         mainContainer.style.display = 'none';
         bubbleIcon.style.display = 'block';
@@ -280,7 +284,13 @@
         if (window.AndroidBridge) {
             AndroidBridge.maximizeWindow();
         }
+        // Force board to recalculate grid layout cleanly upon restore
+        setTimeout(() => {
+            if (typeof board !== 'undefined' && board.resize) {
+                board.resize();
+            }
+        }, 50);
     });
 </script>
 </body>
-                </html>
+</html>
