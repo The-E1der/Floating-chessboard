@@ -26,6 +26,10 @@ class FloatingChessService : Service() {
     private var initialTouchX = 0f
     private var initialTouchY = 0f
 
+    // Track the original size to prevent it from blowing up when restored
+    private var savedWidth = WindowManager.LayoutParams.WRAP_CONTENT
+    private var savedHeight = WindowManager.LayoutParams.WRAP_CONTENT
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     @SuppressLint("ClickableViewAccessibility", "SetJavaScriptEnabled")
@@ -56,7 +60,6 @@ class FloatingChessService : Service() {
             settings.loadWithOverviewMode = true
             setBackgroundColor(0x00000000)
             
-            // This is the bridge connecting your JS to Kotlin
             addJavascriptInterface(WebAppInterface(), "AndroidBridge")
             
             loadUrl("file:///android_asset/chess_overlay.html")
@@ -79,10 +82,17 @@ class FloatingChessService : Service() {
                         windowManager.updateViewLayout(webView, layoutParams)
                         true
                     }
+                    MotionEvent.ACTION_UP -> {
+                        // Auto-disable move mode when you lift your finger!
+                        isMoveMode = false
+                        // Reset the button visually in the HTML
+                        webView.evaluateJavascript("moveModeActive = false; document.getElementById('move-btn').style.opacity = '0.5'; document.getElementById('move-btn').style.backgroundColor = '#333';", null)
+                        true
+                    }
                     else -> false
                 }
             } else {
-                false // Let touch pass through to your HTML piece dragging
+                false 
             }
         }
 
@@ -104,7 +114,11 @@ class FloatingChessService : Service() {
         @JavascriptInterface
         fun minimizeWindow() {
             Handler(Looper.getMainLooper()).post {
-                layoutParams.width = 150 // Shrink window for bubble
+                // Save the exact pixel size before shrinking
+                savedWidth = webView.width
+                savedHeight = webView.height
+                
+                layoutParams.width = 150 
                 layoutParams.height = 150
                 windowManager.updateViewLayout(webView, layoutParams)
             }
@@ -113,8 +127,9 @@ class FloatingChessService : Service() {
         @JavascriptInterface
         fun maximizeWindow() {
             Handler(Looper.getMainLooper()).post {
-                layoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT
-                layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
+                // Restore exact saved size instead of WRAP_CONTENT
+                layoutParams.width = savedWidth
+                layoutParams.height = savedHeight
                 windowManager.updateViewLayout(webView, layoutParams)
             }
         }
