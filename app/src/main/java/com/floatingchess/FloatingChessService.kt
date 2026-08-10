@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
@@ -26,11 +27,16 @@ class FloatingChessService : Service() {
     private var initialTouchX = 0f
     private var initialTouchY = 0f
 
-    // Track the original size to prevent it from blowing up when restored
-    private var savedWidth = WindowManager.LayoutParams.WRAP_CONTENT
-    private var savedHeight = WindowManager.LayoutParams.WRAP_CONTENT
-
     override fun onBind(intent: Intent?): IBinder? = null
+
+    // Helper function to handle screen density properly
+    private fun dpToPx(dp: Int): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp.toFloat(),
+            resources.displayMetrics
+        ).toInt()
+    }
 
     @SuppressLint("ClickableViewAccessibility", "SetJavaScriptEnabled")
     override fun onCreate() {
@@ -56,8 +62,9 @@ class FloatingChessService : Service() {
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            settings.useWideViewPort = true
-            settings.loadWithOverviewMode = true
+            // Disabled wide viewport scaling to prevent board distortion on restore
+            settings.useWideViewPort = false
+            settings.loadWithOverviewMode = false
             setBackgroundColor(0x00000000)
             
             addJavascriptInterface(WebAppInterface(), "AndroidBridge")
@@ -83,10 +90,12 @@ class FloatingChessService : Service() {
                         true
                     }
                     MotionEvent.ACTION_UP -> {
-                        // Auto-disable move mode when you lift your finger!
+                        // Auto-disable move mode when finger is lifted
                         isMoveMode = false
-                        // Reset the button visually in the HTML
-                        webView.evaluateJavascript("moveModeActive = false; document.getElementById('move-btn').style.opacity = '0.5'; document.getElementById('move-btn').style.backgroundColor = '#333';", null)
+                        webView.evaluateJavascript(
+                            "moveModeActive = false; document.getElementById('move-btn').style.opacity = '0.5'; document.getElementById('move-btn').style.backgroundColor = '#333';",
+                            null
+                        )
                         true
                     }
                     else -> false
@@ -104,7 +113,6 @@ class FloatingChessService : Service() {
         if (::webView.isInitialized) windowManager.removeView(webView)
     }
 
-    // The functions your HTML can trigger
     inner class WebAppInterface {
         @JavascriptInterface
         fun toggleMoveMode(enabled: Boolean) {
@@ -114,12 +122,9 @@ class FloatingChessService : Service() {
         @JavascriptInterface
         fun minimizeWindow() {
             Handler(Looper.getMainLooper()).post {
-                // Save the exact pixel size before shrinking
-                savedWidth = webView.width
-                savedHeight = webView.height
-                
-                layoutParams.width = 150 
-                layoutParams.height = 150
+                // Clean 70dp bubble dimensions
+                layoutParams.width = dpToPx(70)
+                layoutParams.height = dpToPx(70)
                 windowManager.updateViewLayout(webView, layoutParams)
             }
         }
@@ -127,9 +132,9 @@ class FloatingChessService : Service() {
         @JavascriptInterface
         fun maximizeWindow() {
             Handler(Looper.getMainLooper()).post {
-                // Restore exact saved size instead of WRAP_CONTENT
-                layoutParams.width = savedWidth
-                layoutParams.height = savedHeight
+                // Restore original wrapped layout bounds smoothly
+                layoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT
+                layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
                 windowManager.updateViewLayout(webView, layoutParams)
             }
         }
