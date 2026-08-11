@@ -73,6 +73,10 @@ class FloatingChessService : Service() {
             settings.domStorageEnabled = true
             settings.useWideViewPort = false
             settings.loadWithOverviewMode = false
+            settings.setSupportZoom(false)
+            settings.builtInZoomControls = false
+            settings.displayZoomControls = false
+            setInitialScale(100)
             setBackgroundColor(0x00000000)
             
             addJavascriptInterface(WebAppInterface(), "AndroidBridge")
