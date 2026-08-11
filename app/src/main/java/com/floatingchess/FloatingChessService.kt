@@ -138,6 +138,8 @@ class FloatingChessService : Service() {
                 layoutParams.width = dpToPx(70) // Shrink to bubble width
                 layoutParams.height = dpToPx(70) // Shrink to bubble height
                 windowManager.updateViewLayout(webView, layoutParams)
+                webView.requestLayout()
+                webView.invalidate()
             }
         }
 
@@ -146,6 +148,8 @@ class FloatingChessService : Service() {
             Handler(Looper.getMainLooper()).post {
                 layoutParams.width = dpToPx(340)
                 windowManager.updateViewLayout(webView, layoutParams)
+                webView.requestLayout()
+                webView.invalidate()
                 Log.d("FloatingChess", "maximizeWindow: width=${layoutParams.width} height=${layoutParams.height}")
                 Toast.makeText(this@FloatingChessService, "Maximize step1: w=${layoutParams.width} h=${layoutParams.height}", Toast.LENGTH_SHORT).show()
             }
@@ -163,6 +167,21 @@ class FloatingChessService : Service() {
                 if (heightPx > 0) {
                     layoutParams.height = heightPx
                     windowManager.updateViewLayout(webView, layoutParams)
+
+                    // WORKAROUND: WebView added directly via WindowManager doesn't
+                    // always repaint its internal surface after a resize — it can
+                    // stretch the OLD cached frame to fill the new bounds instead
+                    // of drawing fresh content. Forcing a layout pass + a brief
+                    // visibility toggle forces WebView to tear down and redraw
+                    // its surface at the correct size.
+                    webView.requestLayout()
+                    webView.invalidate()
+                    webView.visibility = android.view.View.GONE
+                    webView.post {
+                        webView.visibility = android.view.View.VISIBLE
+                        webView.requestLayout()
+                        webView.invalidate()
+                    }
                 }
             }
         }
