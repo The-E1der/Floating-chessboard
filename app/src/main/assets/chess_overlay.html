@@ -246,32 +246,46 @@
 
     let moveModeActive = false;
 
-    // Measures the real rendered height of the visible content and sends it
-    // to Android as raw pixels, so native never has to guess with
-    // WRAP_CONTENT (which is unreliable on a WindowManager-attached WebView).
-    function reportHeight() {
-        if (!window.AndroidBridge || !window.AndroidBridge.updateContentHeight) return;
-        const visibleRoot = (mainContainer.style.display === 'none') ? bubbleIcon : mainContainer;
-        const cssHeight = visibleRoot.getBoundingClientRect().height;
+    // Measures the real rendered height of the given element and sends it to
+    // Android as raw pixels — used ONLY at startup to establish the two
+    // baseline sizes below. Never called again after that, so there's no
+    // opportunity for measurement to compound across cycles.
+    function measureHeight(el) {
+        const cssHeight = el.getBoundingClientRect().height;
         const dpr = window.devicePixelRatio || 1;
-        const rawPx = Math.ceil(cssHeight * dpr);
-        console.log('reportHeight: cssHeight=' + cssHeight + ' dpr=' + dpr + ' rawPx=' + rawPx);
-        AndroidBridge.updateContentHeight(rawPx);
+        return Math.ceil(cssHeight * dpr);
     }
 
-    // Hide / Unhide
+    function sendHeight(px) {
+        if (!window.AndroidBridge || !window.AndroidBridge.updateContentHeight) return;
+        console.log('sendHeight: ' + px);
+        AndroidBridge.updateContentHeight(px);
+    }
+
+    // Fixed, one-time-measured heights. These are set ONCE on load and then
+    // reused for every future minimize/maximize/hide/unhide — we never
+    // re-measure a live element again, which is what caused the size to
+    // creep upward on every cycle before.
+    let expandedHeightPx = null;
+    let bubbleHeightPx = null;
+
+    // Hide / Unhide — panel/palette visibility changes the natural height,
+    // so we keep a third cached value for the "hidden" state too.
+    let hiddenHeightPx = null;
+
     hideBtn.addEventListener('click', () => {
         utilityPanel.style.display = 'none';
         sparePieces.style.display = 'none';
         unhideBtn.style.display = 'inline-block';
-        setTimeout(reportHeight, 0);
+        if (hiddenHeightPx === null) hiddenHeightPx = measureHeight(mainContainer);
+        sendHeight(hiddenHeightPx);
     });
 
     unhideBtn.addEventListener('click', () => {
         utilityPanel.style.display = 'block';
         sparePieces.style.display = 'block';
         unhideBtn.style.display = 'none';
-        setTimeout(reportHeight, 0);
+        sendHeight(expandedHeightPx);
     });
 
     // Move toggle
@@ -284,14 +298,15 @@
         moveBtn.style.backgroundColor = moveModeActive ? '#4CAF50' : '#333';
     });
 
-    // Minimize / Maximize
+    // Minimize / Maximize — always send the SAME cached numbers, never a
+    // freshly re-measured one.
     minimizeBtn.addEventListener('click', () => {
         mainContainer.style.display = 'none';
         bubbleIcon.style.display = 'block';
         if (window.AndroidBridge) {
             AndroidBridge.minimizeWindow();
         }
-        setTimeout(reportHeight, 0);
+        sendHeight(bubbleHeightPx);
     });
 
     bubbleIcon.addEventListener('click', () => {
@@ -300,20 +315,31 @@
         if (window.AndroidBridge) {
             AndroidBridge.maximizeWindow();
         }
-        // Force board to recalculate grid layout cleanly upon restore,
-        // THEN measure — height must be reported after the board reflows,
-        // not before, or we'll send a stale/short number.
-        setTimeout(() => {
-            if (typeof board !== 'undefined' && board.resize) {
-                board.resize();
-            }
-            reportHeight();
-        }, 50);
+        sendHeight(expandedHeightPx);
     });
 
-    // Also correct the height once on initial load, since the native side
-    // starts with a fallback guess (480dp) rather than WRAP_CONTENT.
-    window.addEventListener('load', () => setTimeout(reportHeight, 100));
+    // Establish the two baseline sizes ONCE, right after everything has
+    // rendered for the first time. These numbers are then reused for the
+    // rest of the app's lifetime — no further measuring, no compounding.
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            expandedHeightPx = measureHeight(mainContainer);
+            bubbleHeightPx = measureHeight(bubbleIcon.style.display === 'none' ? mainContainer : bubbleIcon) || Math.ceil(60 * (window.devicePixelRatio || 1));
+            // bubbleIcon is display:none at load, so measure it by temporarily
+            // showing it off-screen instead of guessing.
+            const wasHidden = bubbleIcon.style.display === 'none';
+            if (wasHidden) {
+                bubbleIcon.style.visibility = 'hidden';
+                bubbleIcon.style.display = 'block';
+            }
+            bubbleHeightPx = measureHeight(bubbleIcon);
+            if (wasHidden) {
+                bubbleIcon.style.display = 'none';
+                bubbleIcon.style.visibility = '';
+            }
+            sendHeight(expandedHeightPx);
+        }, 100);
+    });
 </script>
 </body>
 </html>
