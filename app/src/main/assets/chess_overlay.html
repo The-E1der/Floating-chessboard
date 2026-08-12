@@ -257,6 +257,7 @@
     }
 
     function sendHeight(px) {
+        if (px === null || px === undefined || px <= 0) return;
         if (!window.AndroidBridge || !window.AndroidBridge.updateContentHeight) return;
         console.log('sendHeight: ' + px);
         AndroidBridge.updateContentHeight(px);
@@ -321,25 +322,36 @@
     // Establish the two baseline sizes ONCE, right after everything has
     // rendered for the first time. These numbers are then reused for the
     // rest of the app's lifetime — no further measuring, no compounding.
-    window.addEventListener('load', () => {
-        setTimeout(() => {
-            expandedHeightPx = measureHeight(mainContainer);
-            bubbleHeightPx = measureHeight(bubbleIcon.style.display === 'none' ? mainContainer : bubbleIcon) || Math.ceil(60 * (window.devicePixelRatio || 1));
-            // bubbleIcon is display:none at load, so measure it by temporarily
-            // showing it off-screen instead of guessing.
-            const wasHidden = bubbleIcon.style.display === 'none';
-            if (wasHidden) {
-                bubbleIcon.style.visibility = 'hidden';
-                bubbleIcon.style.display = 'block';
-            }
-            bubbleHeightPx = measureHeight(bubbleIcon);
-            if (wasHidden) {
-                bubbleIcon.style.display = 'none';
-                bubbleIcon.style.visibility = '';
-            }
-            sendHeight(expandedHeightPx);
-        }, 100);
-    });
+    function initCachedHeights() {
+        expandedHeightPx = measureHeight(mainContainer);
+
+        const wasHidden = bubbleIcon.style.display === 'none';
+        if (wasHidden) {
+            bubbleIcon.style.visibility = 'hidden';
+            bubbleIcon.style.display = 'block';
+        }
+        bubbleHeightPx = measureHeight(bubbleIcon);
+        if (wasHidden) {
+            bubbleIcon.style.display = 'none';
+            bubbleIcon.style.visibility = '';
+        }
+
+        console.log('initCachedHeights: expanded=' + expandedHeightPx + ' bubble=' + bubbleHeightPx);
+        if (window.AndroidBridge && window.AndroidBridge.reportCachedHeights) {
+            AndroidBridge.reportCachedHeights(expandedHeightPx, bubbleHeightPx);
+        }
+        sendHeight(expandedHeightPx);
+    }
+
+    // 'load' only fires once — if it already fired before this script ran
+    // (very likely, since this runs after jQuery/chessboard.js init), a
+    // listener added now would silently never trigger, leaving both cached
+    // values stuck at null forever. Check readyState to cover both cases.
+    if (document.readyState === 'complete') {
+        setTimeout(initCachedHeights, 100);
+    } else {
+        window.addEventListener('load', () => setTimeout(initCachedHeights, 100));
+    }
 </script>
 </body>
-</html>
+</html> 
