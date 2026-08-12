@@ -137,6 +137,14 @@ class FloatingChessService : Service() {
         }
 
         @JavascriptInterface
+        fun reportCachedHeights(expandedPx: Int, bubblePx: Int) {
+            Handler(Looper.getMainLooper()).post {
+                Log.d("FloatingChess", "CACHED once: expanded=${expandedPx}px bubble=${bubblePx}px")
+                Toast.makeText(this@FloatingChessService, "Cached ONCE: expanded=${expandedPx}px bubble=${bubblePx}px", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        @JavascriptInterface
         fun minimizeWindow() {
             Handler(Looper.getMainLooper()).post {
                 layoutParams.width = dpToPx(70) // Shrink to bubble width
